@@ -1,0 +1,1126 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier des règles</title>
+<style>
+/*@FONTS@*/
+/*@STYLE@*/
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" aria-hidden="true"><i></i><i></i><i></i></div>
+  <input class="title" id="title" value="Notre jeu" aria-label="Titre du jeu">
+  <div class="nav">
+    <button id="prev" title="Étape précédente (Page précédente)">◀</button>
+    <span id="stepLabel"></span>
+    <button id="next" class="primary" title="Étape suivante (Page suivante)">Suivant ▶</button>
+  </div>
+  <button id="btnPredict" title="Raccourci : P">🤔 Prédire</button>
+  <button id="btnRestart" class="primary" title="Raccourci : R">▶ Tester</button>
+  <button id="btnNotes" title="Afficher / réduire le programme de l’étape (N)">📋 Programme</button>
+  <button id="btnDisplay" title="Choisir : un seul écran, ou télé + portable">📺 Un écran</button>
+  <button id="btnTools" title="Outils">⚙</button>
+</header>
+<div class="toolsrow" id="toolsRow" hidden>
+  <label>Mission <select id="mission"></select></label>
+  <label>Version <select id="preset">
+    <option value="">— charger —</option>
+    <option value="vide">Vide (aucune règle)</option>
+    <option value="depart">Version de départ</option>
+    <option value="bug1">Bug 1 : impossible de gagner</option>
+    <option value="bug2">Bug 2 : ramasser fait reculer</option>
+    <option value="finale">Version finale de secours</option>
+  </select></label>
+  <button id="btnFocus" title="Raccourci : F">🔍 Agrandir le jeu</button>
+  <button id="zoomOut" title="Texte plus petit">A−</button>
+  <button id="zoomIn" title="Texte plus grand">A+</button>
+  <button id="btnSound">🔊</button>
+  <button id="btnExport" title="Sauvegarder la configuration dans un fichier">💾</button>
+  <button id="btnImport" title="Charger une configuration">📂</button>
+  <input type="file" id="file" accept=".json" hidden>
+  <button id="btnPrint">📄 Fiche animateur imprimable</button>
+  <button id="btnLink">🔗 Copier le lien du jeu</button>
+  <button id="btnResetAll">↺ Recommencer l’atelier</button>
+</div>
+<div id="stepbar"><div id="say"></div><div id="clock"></div></div>
+<main>
+  <div id="slide"></div>
+  <section class="col" id="playInfo"></section>
+  <section class="col palette" id="palette"></section>
+  <section class="col" id="rulesCol">
+    <h2>Les règles du jeu</h2>
+    <div id="rules"></div>
+    <button id="addRule">＋ Nouvelle règle</button>
+    <p class="help">Glissez un bloc dans une case, ou cliquez sur une case puis sur un bloc. Les règles s’appliquent dès que vous cliquez sur <b>▶ Tester</b>.<br>
+    Jeu : flèches <kbd>←↑→↓</kbd> pour déplacer · <kbd>R</kbd> rejouer · <kbd>P</kbd> prédire · <kbd>F</kbd> agrandir.</p>
+  </section>
+  <section class="gamecol">
+    <div class="gamewrap" id="gamewrap">
+      <canvas id="cv" width="840" height="600"></canvas>
+      <div class="hud" id="hud"></div>
+      <div class="toast" id="toast"></div>
+      <div class="banner" id="banner"><div class="big" id="bannerBig"></div><div class="small" id="bannerSmall"></div></div>
+    </div>
+    <div id="dpad"><button data-k="ArrowUp" class="u">▲</button><button data-k="ArrowLeft" class="l">◀</button><button data-k="ArrowDown" class="d">▼</button><button data-k="ArrowRight" class="r">▶</button></div>
+    <div class="log" id="log"><div>Journal : ici s’affiche chaque règle déclenchée.</div></div>
+  </section>
+</main>
+
+<div class="overlay" id="predict">
+  <div class="card">
+    <h1>🤔 À vous de prédire !</h1>
+    <input class="q" id="pq" value="Que va-t-il se passer si le personnage touche un obstacle ?">
+    <div class="opts" id="opts"></div>
+    <div class="rulesread" id="rulesread"></div>
+    <p style="display:flex;gap:.6em;justify-content:flex-end;margin-top:1em">
+      <button id="pReset">Remettre les votes à zéro</button>
+      <button id="pClose">Fermer</button>
+      <button id="pTest" class="primary">▶ On teste !</button>
+    </p>
+  </div>
+</div>
+
+<div class="overlay" id="launcher">
+  <div class="card launch">
+    <h1>Comment présentez-vous ?</h1>
+    <p class="help" style="font-size:1em">Ce choix n’est vu que par vous au lancement. Il se change à tout moment avec le bouton 📺 en haut.</p>
+    <div class="lchoices">
+      <div class="lchoice"><div class="em">📺</div><h2>Un seul écran</h2>
+        <p>La télé affiche le jeu et le <b>programme de chaque étape</b> (grandes lignes, visibles par les participantes). Les consignes détaillées sont sur la fiche imprimée.</p>
+        <button id="goOne" class="primary">Lancer sur un écran</button> <button id="goPrint">📄 Imprimer la fiche</button></div>
+      <div class="lchoice"><div class="em">📺 + 💻</div><h2>Télé + portable</h2>
+        <p>Une <b>fenêtre animateur</b> s’ouvre : à glisser sur l’écran du portable. Elle montre les consignes, le chrono et les boutons, et pilote la télé. Rien de privé n’apparaît sur la télé.</p>
+        <p class="help" style="font-size:.9em">Avant : Windows + P → « Étendre ». Mettre cette page en plein écran (F11) sur la télé.</p>
+        <button id="goTwo" class="primary">Ouvrir la vue animateur</button></div>
+    </div>
+  </div>
+</div>
+
+<div id="notes"><div class="hd"><span id="notesTitle">Au programme</span><button id="notesMin" title="Afficher / réduire (N)">N</button></div><div class="body" id="notesBody"></div></div>
+
+<script>
+/*@QRCODE@*/
+</script>
+<script>
+/*@SPRITES@*/
+</script>
+<script>
+"use strict";
+/* ---------- Missions (vocabulaire + sprites) ---------- */
+const MISSIONS = {
+  propre:   {name:"Ville propre", world:"ville", player:"velo", item:"dechet", goal:"recyclage",
+             one:"un déchet", items:"déchets", goalTo:"au centre de recyclage"},
+  livraison:{name:"Livraison express", world:"ville", player:"trottinette", item:"colis", goal:"maison",
+             one:"un colis", items:"colis", goalTo:"à la maison"},
+  abeilles: {name:"Sauver les abeilles", world:"foret", player:"abeille", item:"fleur", goal:"ruche",
+             one:"une fleur", items:"fleurs", goalTo:"à la ruche"},
+  lac:      {name:"Nettoyer le lac", world:"plage", player:"bateau", item:"bouteille", goal:"port",
+             one:"une bouteille", items:"bouteilles", goalTo:"au port"}
+};
+let M = MISSIONS.propre;
+const WORLDS = {
+  ville: {name:"Ville",    obstacle:"voiture",  obsOne:"une voiture",   obsThe:"la voiture",   obstacles:"voitures",   bandLabel:"Lac",      deco:["ville_arbre","ville_maison","ville_banc","ville_lampadaire"]},
+  foret: {name:"Forêt",    obstacle:"araignee", obsOne:"une araignée",  obsThe:"l’araignée",   obstacles:"araignées",  bandLabel:"Rivière",  deco:["foret_sapin","foret_champignon","foret_rocher","foret_buisson"]},
+  plage: {name:"Plage",    obstacle:"jetski",   obsOne:"un jet-ski",    obsThe:"le jet-ski",   obstacles:"jet-skis",   bandLabel:"Mer",      deco:["plage_palmier","plage_coquillage","plage_parasol","plage_crabe"]},
+  espace:{name:"Espace",   obstacle:"vaisseau", obsOne:"un vaisseau",   obsThe:"le vaisseau",  obstacles:"vaisseaux",  bandLabel:"Planète",  deco:["espace_etoile","espace_planete","espace_comete","espace_lune"], dark:true},
+  neige: {name:"Montagne", obstacle:"dameuse",  obsOne:"une dameuse",   obsThe:"la dameuse",   obstacles:"dameuses",   bandLabel:"Lac gelé", deco:["neige_bonhomme","neige_sapin","neige_flocon","neige_montagne"]},
+};
+const AVATARS = Object.keys(CHARS);
+let worldKey = "ville", avatar = null;
+const WD = () => WORLDS[worldKey] || WORLDS.ville;
+const PLAYER = () => (avatar && CHARS[avatar]) ? avatar : M.player;
+/* images des sprites pour l'interface (mises en cache) */
+const imgCache = {};
+function spriteURL(key, size=96, opts={}){
+  const id = key+"|"+size+"|"+JSON.stringify(opts);
+  if(imgCache[id]) return imgCache[id];
+  const c = document.createElement("canvas"); c.width = c.height = size*2; const g = c.getContext("2d");
+  if(CHARS[key]) drawChar(g, key, size, size, size*1.8, 0.4, opts); else drawThing(g, key, size, size, size*1.8, 0.4, opts);
+  return imgCache[id] = c.toDataURL();
+}
+function worldURL(key){
+  const id = "world|"+key; if(imgCache[id]) return imgCache[id];
+  const c = document.createElement("canvas"); c.width = 420; c.height = 300; const g = c.getContext("2d");
+  g.scale(.5,.5); drawWorld(g, key, LV(key), 0);
+  WORLDS[key].deco.forEach((d,i) => drawThing(g, d, [150,690,90,750][i], [90,90,330,330][i], 70, 0));
+  return imgCache[id] = c.toDataURL();
+}
+const IMG = (key, cls="", size=96, opts) => `<img class="${cls}" src="${spriteURL(key,size,opts)}" alt="">`;
+const WO = () => WORLDS[worldKey] || WORLDS.ville;
+const fill = s => s.replace(/\{one\}/g,M.one).replace(/\{items\}/g,M.items).replace(/\{obsOne\}/g,WO().obsOne)
+  .replace(/\{obsThe\}/g,WO().obsThe).replace(/\{obstacles\}/g,WO().obstacles).replace(/\{goalTo\}/g,M.goalTo);
+
+/* ---------- Blocs ---------- */
+// field: n = nombre, t = texte. Le texte entre [ ] est remplacé par le champ.
+const DEF = {
+  ev:{
+    start:   {t:"le jeu démarre"},
+    obstacle:{t:"le personnage touche {obsOne}"},
+    item:    {t:"le personnage ramasse {one}"},
+    allItems:{t:"il ne reste plus de {items}"},
+    goal:    {t:"le personnage arrive {goalTo}"},
+    timer:   {t:"le chrono arrive à 0"},
+    noLives: {t:"il n’y a plus de vies"},
+  },
+  co:{
+    allItems:{t:"il ne reste plus de {items}"},
+    scoreGe: {t:"le score est au moins [n]", n:5},
+    livesGt: {t:"il reste plus de [n] vie(s)", n:0},
+  },
+  ac:{
+    toStart: {t:"retourne au départ"},
+    addScore:{t:"gagne [n] point(s)", n:1},
+    subScore:{t:"perd [n] point(s)", n:1},
+    loseLife:{t:"perd 1 vie"},
+    faster:  {t:"va plus vite"},
+    slower:  {t:"va plus lentement"},
+    removeObs:{t:"{obsThe} disparaît"},
+    addObs:  {t:"ajoute {obsOne}"},
+    stopObs: {t:"les {obstacles} s’arrêtent"},
+    moveObs: {t:"les {obstacles} bougent"},
+    setTimer:{t:"chrono à [n] secondes", n:60},
+    addTime: {t:"ajoute [n] secondes", n:5},
+    setLives:{t:"donne [n] vies", n:3},
+    say:     {t:"affiche [t]", tx:"Bravo !"},
+    sound:   {t:"joue un son"},
+    win:     {t:"🏆 la partie est gagnée"},
+    lose:    {t:"💥 la partie est perdue"},
+  }
+};
+const KW = {ev:"QUAND", co:"SI", ac:"ALORS"};
+
+/* ---------- Versions préparées ---------- */
+const B = (type, extra) => Object.assign({type}, extra||{});
+const PRESETS = {
+  vide: [],
+  depart: [
+    {ev:B("start"), co:null, then:[B("setTimer",{n:60})], els:[]},
+    {ev:B("item"), co:null, then:[B("addScore",{n:1}), B("sound")], els:[]},
+    {ev:B("obstacle"), co:null, then:[], els:[]},
+    {ev:B("goal"), co:null, then:[B("win")], els:[]},
+    {ev:B("timer"), co:null, then:[B("lose")], els:[]},
+  ],
+  bug1: [
+    {ev:B("start"), co:null, then:[B("setTimer",{n:60})], els:[]},
+    {ev:B("item"), co:null, then:[B("addScore",{n:1}), B("sound")], els:[]},
+    {ev:B("obstacle"), co:null, then:[B("toStart")], els:[]},
+    {ev:B("goal"), co:B("scoreGe",{n:20}), then:[B("win")], els:[B("say",{tx:"Pas encore !"})]},
+    {ev:B("timer"), co:null, then:[B("lose")], els:[]},
+  ],
+  bug2: [
+    {ev:B("start"), co:null, then:[B("setTimer",{n:60})], els:[]},
+    {ev:B("item"), co:null, then:[B("addScore",{n:1}), B("toStart")], els:[]},
+    {ev:B("obstacle"), co:null, then:[B("subScore",{n:1})], els:[]},
+    {ev:B("goal"), co:B("allItems"), then:[B("win")], els:[B("say",{tx:"Il en manque !"})]},
+    {ev:B("timer"), co:null, then:[B("lose")], els:[]},
+  ],
+  finale: [
+    {ev:B("start"), co:null, then:[B("setTimer",{n:60}), B("setLives",{n:3})], els:[]},
+    {ev:B("item"), co:null, then:[B("addScore",{n:1}), B("sound")], els:[]},
+    {ev:B("allItems"), co:null, then:[B("say",{tx:"Direction l’arrivée !"}), B("stopObs")], els:[]},
+    {ev:B("obstacle"), co:null, then:[B("loseLife"), B("toStart")], els:[]},
+    {ev:B("goal"), co:B("allItems"), then:[B("win")], els:[B("say",{tx:"Il en manque !"})]},
+    {ev:B("noLives"), co:null, then:[B("lose")], els:[]},
+    {ev:B("timer"), co:null, then:[B("lose")], els:[]},
+  ],
+};
+
+/* ---------- État ---------- */
+let uid = 1;
+const clone = o => JSON.parse(JSON.stringify(o));
+function withIds(rules){ return rules.map(r => ({id:uid++, on:true, ev:r.ev, co:r.co, then:r.then||[], els:r.els||[]})); }
+let rules = withIds(PRESETS.depart);
+let selected = null; // {rid, slot}
+let soundOn = true;
+
+function save(){
+  if(MODE!=="atelier") return;
+  try{ localStorage.setItem("atelier-regles", JSON.stringify(gameState())); }catch(e){}
+}
+function gameState(){ return {rules, mission:missionKey(), title:$("title").value, world:worldKey, avatar}; }
+function applyState(s){
+  rules = withIds(s.rules || []);
+  if(MISSIONS[s.mission]) M = MISSIONS[s.mission];
+  worldKey = WORLDS[s.world] ? s.world : M.world; avatar = s.avatar || null;
+  if(s.title) $("title").value = s.title;
+}
+function missionKey(){ return Object.keys(MISSIONS).find(k => MISSIONS[k]===M); }
+const $ = id => document.getElementById(id);
+
+/* ---------- Rendu des blocs ---------- */
+function blockLabel(kind, b, plain){
+  const d = DEF[kind][b.type];
+  let s = fill(d.t);
+  if(plain){
+    return s.replace("[n]", b.n ?? d.n).replace("[t]", "« "+(b.tx ?? d.tx)+" »");
+  }
+  return s;
+}
+function makeBlock(kind, b, opts){
+  const el = document.createElement("div");
+  el.className = "blk " + kind + (b===justAdded ? " snap" : "");
+  el.draggable = true;
+  const d = DEF[kind][b.type];
+  const parts = fill(d.t).split(/(\[n\]|\[t\])/);
+  for(const p of parts){
+    if(p==="[n]" || p==="[t]"){
+      const inp = document.createElement("input");
+      if(p==="[t]"){ inp.className="txt"; inp.value = b.tx ?? d.tx; }
+      else { inp.type="number"; inp.value = b.n ?? d.n; }
+      if(opts.palette){ inp.readOnly = true; inp.tabIndex=-1; }
+      else {
+        inp.addEventListener("input", () => { if(p==="[t]") b.tx = inp.value; else b.n = Number(inp.value)||0; updateSentences(); save(); });
+      }
+      inp.addEventListener("mousedown", e => e.stopPropagation());
+      el.appendChild(inp);
+    } else if(p) el.appendChild(document.createTextNode(p));
+  }
+  if(opts.onRemove){
+    const x = document.createElement("button"); x.className="x"; x.textContent="✕"; x.title="Retirer";
+    x.onclick = e => { e.stopPropagation(); opts.onRemove(); };
+    el.appendChild(x);
+  }
+  el.addEventListener("dragstart", e => {
+    e.dataTransfer.setData("text/plain", JSON.stringify({kind, b: opts.palette ? {type:b.type} : b, from: opts.from || null}));
+    e.dataTransfer.effectAllowed = opts.palette ? "copy" : "move";
+  });
+  if(opts.palette){
+    el.addEventListener("click", () => insertIntoSelected(kind, {type:b.type}));
+  }
+  return el;
+}
+
+function renderPalette(){
+  const p = $("palette"); p.innerHTML = "";
+  const titles = {ev:"Événements — QUAND…", co:"Conditions — SI…", ac:"Actions — ALORS…"};
+  for(const kind of ["ev","co","ac"]){
+    const h = document.createElement("h2"); h.innerHTML = `<i class="chip" style="background:var(--${kind})"></i>` + titles[kind]; p.appendChild(h);
+    for(const type of Object.keys(DEF[kind])){
+      p.appendChild(makeBlock(kind, {type}, {palette:true}));
+    }
+  }
+}
+
+function slotEl(rule, slot, kind, list){
+  const s = document.createElement("div");
+  s.className = "slot" + (list ? " list" : "");
+  if(selected && selected.rid===rule.id && selected.slot===slot) s.classList.add("sel");
+  const content = list ? rule[slot] : (rule[slot] ? [rule[slot]] : []);
+  if(!content.length){
+    const ph = document.createElement("span"); ph.className="ph";
+    ph.textContent = slot==="co" ? "(toujours — pas de condition)" : slot==="ev" ? "déposer un événement" : "déposer une ou plusieurs actions";
+    s.appendChild(ph);
+  }
+  content.forEach((b, i) => {
+    s.appendChild(makeBlock(kind, b, {
+      from:{rid:rule.id, slot, i},
+      onRemove: () => { if(list) rule[slot].splice(i,1); else { rule[slot]=null; if(slot==="co") rule.els=[]; } changed(); }
+    }));
+  });
+  s.addEventListener("click", e => {
+    if(e.target!==s && !e.target.classList.contains("ph")) return;
+    selected = (selected && selected.rid===rule.id && selected.slot===slot) ? null : {rid:rule.id, slot};
+    renderRules();
+  });
+  s.addEventListener("dragover", e => { e.preventDefault(); s.classList.add("over"); });
+  s.addEventListener("dragleave", () => s.classList.remove("over"));
+  s.addEventListener("drop", e => {
+    e.preventDefault(); s.classList.remove("over");
+    let data; try{ data = JSON.parse(e.dataTransfer.getData("text/plain")); }catch(_){ return; }
+    if(data.kind!==kind){ flashMsg(kind==="ev" ? "Ici, il faut un bloc QUAND (orange)" : kind==="co" ? "Ici, il faut un bloc SI (vert)" : "Ici, il faut un bloc ALORS (bleu)"); return; }
+    if(data.from){ removeFrom(data.from); }
+    const b = data.from ? data.b : newBlock(kind, data.b.type);
+    if(list) rule[slot].push(b); else rule[slot] = b;
+    changed();
+  });
+  return s;
+}
+let justAdded = null;
+function newBlock(kind, type){
+  const d = DEF[kind][type]; const b = {type}; justAdded = b;
+  if("n" in d) b.n = d.n; if("tx" in d) b.tx = d.tx; return b;
+}
+function removeFrom(f){
+  const r = rules.find(x => x.id===f.rid); if(!r) return;
+  if(Array.isArray(r[f.slot])) r[f.slot].splice(f.i,1); else r[f.slot]=null;
+}
+function insertIntoSelected(kind, b){
+  let r = selected && rules.find(x => x.id===selected.rid);
+  let slot = selected && selected.slot;
+  const want = {ev:["ev"], co:["co"], ac:["then","els"]}[kind];
+  if(!r || !want.includes(slot)){
+    // pas de case choisie : on prend la dernière règle, case adaptée
+    r = rules[rules.length-1];
+    if(!r){ rules.push(...withIds([{ev:null,co:null,then:[],els:[]}])); r = rules[rules.length-1]; }
+    slot = want[0];
+  }
+  const nb = newBlock(kind, b.type);
+  if(Array.isArray(r[slot])) r[slot].push(nb); else r[slot] = nb;
+  changed();
+}
+
+function ruleSentence(r){
+  if(!r.ev) return "(règle incomplète : il manque le QUAND)";
+  let s = "Quand " + blockLabel("ev", r.ev, true);
+  const acts = l => l.length ? l.map(b => blockLabel("ac", b, true)).join(", puis ") : "rien ne se passe";
+  if(r.co){
+    s += ", si " + blockLabel("co", r.co, true) + ", alors " + acts(r.then);
+    s += r.els.length ? ", sinon " + acts(r.els) : ", sinon rien";
+  } else s += ", alors " + acts(r.then);
+  return s.replace(/\bsi il/g, "s’il") + ".";
+}
+
+function renderRules(){
+  const box = $("rules"); box.innerHTML = "";
+  rules.forEach((r, idx) => {
+    const c = document.createElement("div");
+    c.className = "rule" + (r.on ? "" : " off"); c.dataset.rid = r.id; c.dataset.n = "Règle " + (idx+1);
+    const tools = document.createElement("div"); tools.className="tools";
+    const tg = document.createElement("button"); tg.textContent = r.on ? "Désactiver" : "Activer";
+    tg.onclick = () => { r.on = !r.on; changed(); };
+    const del = document.createElement("button"); del.textContent = "🗑"; del.title="Supprimer la règle";
+    del.onclick = () => { rules.splice(idx,1); changed(); };
+    tools.append(tg, del); c.appendChild(tools);
+
+    const row = (kw, kind, slot, list) => {
+      const d = document.createElement("div"); d.className="row";
+      const k = document.createElement("span"); k.className="kw "+kind; k.textContent = kw;
+      d.append(k, slotEl(r, slot, kind, list)); return d;
+    };
+    c.appendChild(row("QUAND","ev","ev",false));
+    c.appendChild(row("SI","co","co",false));
+    c.appendChild(row("ALORS","ac","then",true));
+    if(r.co) c.appendChild(row("SINON","ac","els",true));
+    const sen = document.createElement("div"); sen.className="sentence"; sen.textContent = "« " + ruleSentence(r) + " »";
+    c.appendChild(sen);
+    box.appendChild(c);
+  });
+}
+function updateSentences(){
+  document.querySelectorAll(".rule").forEach(c => {
+    const r = rules.find(x => x.id==c.dataset.rid);
+    if(r) c.querySelector(".sentence").textContent = "« " + ruleSentence(r) + " »";
+  });
+}
+function changed(){ renderRules(); save(); justAdded = null; }
+
+/* ---------- Son ---------- */
+let actx = null;
+function beep(freq=660, dur=.12, type="sine"){
+  if(!soundOn) return;
+  try{
+    actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq; g.gain.value = .12;
+    o.connect(g); g.connect(actx.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(.0001, actx.currentTime+dur); o.stop(actx.currentTime+dur);
+  }catch(e){}
+}
+
+/* ---------- Jeu ---------- */
+const cv = $("cv"), ctx = cv.getContext("2d");
+const W = cv.width, H = cv.height, CELL = 60; // 14 x 10 cases
+const LANES = [2,4,6];       // rangées de route
+const START = {x: W/2, y: 8.5*CELL};
+const GOAL  = {x: W/2, y: 0.5*CELL};
+const keys = {};
+let G = null;
+
+function rnd(seed){ return () => (seed = (seed*16807) % 2147483647) / 2147483647; }
+function newGame(){
+  const r = rnd(7);
+  const items = [];
+  const spots = [[1,1],[12,1],[3,3],[10,3],[6,5],[1,5],[12,7],[4,7]];
+  for(const [cx,cy] of spots) items.push({x:(cx+.5)*CELL, y:(cy+.5)*CELL, got:false});
+  const obs = [];
+  LANES.forEach((ly, li) => {
+    for(let k=0;k<2;k++) obs.push(makeObs(li, k*W/2 + r()*120));
+  });
+  G = { t:0, px:START.x, py:START.y, speed:1, score:0, lives:null, timer:null, items, obs,
+        state:"playing", obsMove:true, hitCool:0, inGoal:false, allFired:false, noLivesFired:false, timerFired:false, msg:"" };
+  hideBanner();
+  logClear();
+  fire("start");
+}
+function makeObs(li, x){
+  const dir = li%2 ? -1 : 1;
+  return {x, y:(LANES[li]+.5)*CELL, v:(90+li*35)*dir, alive:true};
+}
+
+function condOk(c){
+  if(!c) return true;
+  if(c.type==="allItems") return G.items.every(i => i.got);
+  if(c.type==="scoreGe") return G.score >= (c.n ?? 0);
+  if(c.type==="livesGt") return G.lives!==null && G.lives > (c.n ?? 0);
+  return true;
+}
+function fire(evt, ctxObj){
+  const matching = rules.filter(r => r.on && r.ev && r.ev.type===evt);
+  if(evt!=="start" && !matching.length){
+    log("⚡ " + cap(blockLabel("ev",{type:evt},true)) + " → aucune règle, il ne se passe rien.");
+    return;
+  }
+  for(const r of matching){
+    if(G.state!=="playing" && evt!=="start") break;
+    const ok = condOk(r.co);
+    const list = ok ? r.then : r.els;
+    let line = "⚡ " + cap(blockLabel("ev", r.ev, true));
+    if(r.co) line += " · SI " + blockLabel("co", r.co, true) + (ok ? " ✔ vrai" : " ✘ faux");
+    line += " → " + (list.length ? list.map(b => blockLabel("ac",b,true)).join(", ") : "rien");
+    log(line);
+    flashRule(r.id);
+    for(const a of list) act(a, ctxObj);
+  }
+}
+const cap = s => s.charAt(0).toUpperCase()+s.slice(1);
+
+function act(a, c){
+  switch(a.type){
+    case "toStart": G.px=START.x; G.py=START.y; G.inGoal=false; break;
+    case "addScore": G.score += (a.n ?? 1); break;
+    case "subScore": G.score -= (a.n ?? 1); break;
+    case "loseLife":
+      if(G.lives===null){ log("   (aucune vie n’a été donnée au départ : rien à perdre)"); break; }
+      G.lives = Math.max(0, G.lives-1); beep(220,.2,"square");
+      if(G.lives===0 && !G.noLivesFired){ G.noLivesFired=true; setTimeout(() => fire("noLives"), 0); }
+      break;
+    case "faster": G.speed = Math.min(3, G.speed*1.4); break;
+    case "slower": G.speed = Math.max(.3, G.speed/1.4); break;
+    case "removeObs": if(c && c.obs) c.obs.alive=false; break;
+    case "addObs": { const li = Math.floor(Math.random()*LANES.length); G.obs.push(makeObs(li, Math.random()*W)); break; }
+    case "stopObs": G.obsMove=false; break;
+    case "moveObs": G.obsMove=true; break;
+    case "setTimer": G.timer = a.n ?? 60; G.timerFired=false; break;
+    case "addTime": if(G.timer===null){ log("   (pas de chrono en route)"); } else G.timer += (a.n ?? 5); break;
+    case "setLives": G.lives = a.n ?? 3; G.noLivesFired=false; break;
+    case "say": toast(a.tx ?? "Bravo !"); break;
+    case "sound": beep(880,.1); setTimeout(()=>beep(1320,.12),90); break;
+    case "win": endGame(true); break;
+    case "lose": endGame(false); break;
+  }
+}
+function endGame(won){
+  if(G.state!=="playing") return;
+  G.state = won ? "won" : "lost";
+  if(won){ burst(); [523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.18,"triangle"),i*120)); }
+  else beep(160,.4,"sawtooth");
+  showBanner(won ? "Gagné !" : "Perdu !",
+    (won ? $("title").value + " — un jeu imaginé par les participantes de la JOM 2026" : "Que faudrait-il changer dans les règles ?") + "<br><small>Appuyez sur R pour rejouer</small>");
+}
+
+function update(dt){
+  if(G.state!=="playing") return;
+  G.t += dt;
+  // déplacement
+  let dx = (keys.ArrowRight?1:0) - (keys.ArrowLeft?1:0), dy = (keys.ArrowDown?1:0) - (keys.ArrowUp?1:0);
+  G.moving = !!(dx||dy); if(dx) G.dir = dx;
+  if(dx||dy){ const l = Math.hypot(dx,dy); const sp = 200*G.speed*dt; G.px += dx/l*sp; G.py += dy/l*sp; }
+  G.px = Math.max(24, Math.min(W-24, G.px)); G.py = Math.max(24, Math.min(H-84, G.py));
+  // obstacles
+  if(G.obsMove) for(const o of G.obs){ o.x += o.v*dt; if(o.x > W+40) o.x = -40; if(o.x < -40) o.x = W+40; }
+  // chrono
+  if(G.timer!==null){
+    G.timer -= dt;
+    if(G.timer<=0){ G.timer=0; if(!G.timerFired){ G.timerFired=true; fire("timer"); } }
+  }
+  if(G.hitCool>0) G.hitCool -= dt;
+  // collisions
+  for(const it of G.items){
+    if(!it.got && Math.hypot(it.x-G.px, it.y-G.py) < 40){
+      it.got = true; fire("item");
+      if(G.state==="playing" && !G.allFired && G.items.every(i=>i.got)){ G.allFired=true; fire("allItems"); }
+    }
+  }
+  if(G.hitCool<=0){
+    for(const o of G.obs){
+      if(o.alive && Math.hypot(o.x-G.px, o.y-G.py) < 42){ G.hitCool = 1; fire("obstacle", {obs:o}); break; }
+    }
+  }
+  const inG = Math.hypot(GOAL.x-G.px, GOAL.y-G.py) < 46;
+  if(inG && !G.inGoal){ G.inGoal = true; fire("goal"); }
+  if(!inG) G.inGoal = false;
+}
+
+const DECO = [[4,1],[9,1],[0,3],[13,3],[8,5],[11,5],[2,7],[9,7],[0,0],[13,0],[2,8],[11,8]];
+const LV = k => ({W, H, CELL, LANES, START, GOAL, label: WORLDS[k].bandLabel});
+let T = 0, confetti = [], hudCache = "";
+function label(text, x, y, size, align="left"){
+  ctx.font = `600 ${size}px Fredoka, "Segoe UI", sans-serif`; ctx.textAlign = align; ctx.textBaseline = "middle";
+  ctx.lineJoin = "round"; ctx.lineWidth = size*.28; ctx.strokeStyle = "#1d1b2f"; ctx.strokeText(text, x, y);
+  ctx.fillStyle = "#fffdf7"; ctx.fillText(text, x, y);
+}
+function draw(){
+  const wk = WORLDS[worldKey] ? worldKey : "ville";
+  drawWorld(ctx, wk, LV(wk), T);
+  DECO.forEach(([cx,cy],i) => drawThing(ctx, WORLDS[wk].deco[i % 4], (cx+.5)*CELL, (cy+.5)*CELL, 44, T));
+  label(WORLDS[wk].bandLabel, 16, H-CELL/2, 22);
+  label("DÉPART", START.x, START.y+38, 14, "center");
+  drawThing(ctx, M.goal, GOAL.x, GOAL.y+2, 68, T);
+  for(const it of G.items) if(!it.got) drawThing(ctx, M.item, it.x, it.y + Math.sin(T*4+it.x)*3, 54, T);
+  for(const o of G.obs) if(o.alive) drawThing(ctx, WO().obstacle, o.x, o.y, 64, T, {flip: o.v<0});
+  if(!(G.hitCool>0 && Math.floor(T*12)%2)) drawChar(ctx, PLAYER(), G.px, G.py, 68, T, {moving: G.moving, dir: G.dir||1});
+  // confettis de victoire
+  for(const c of confetti){
+    c.vy += 500*c.dt; c.x += c.vx*c.dt; c.y += c.vy*c.dt; c.r += c.vr*c.dt; c.dt = 1/60;
+    ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.r); ctx.fillStyle = c.col; ctx.strokeStyle = "#1d1b2f"; ctx.lineWidth = 1.5;
+    ctx.fillRect(-6,-3,12,6); ctx.strokeRect(-6,-3,12,6); ctx.restore();
+  }
+  confetti = confetti.filter(c => c.y < H+30);
+  // HUD en pastilles
+  const left = G.items.filter(i=>!i.got).length;
+  let h = `<span>⭐ ${G.score} point${Math.abs(G.score)>1?"s":""}</span><span>${IMG(M.item,"",32)} ${left} restant${left>1?"s":""}</span>`;
+  if(G.timer!==null) h += `<span class="${G.timer<10?"warn":""}">⏱ ${Math.ceil(G.timer)} s</span>`;
+  if(G.lives!==null) h += `<span class="${G.lives<=1?"warn":""}">❤️ ${G.lives}</span>`;
+  if(h!==hudCache){ $("hud").innerHTML = h; hudCache = h; }
+}
+function burst(){
+  const cols = ["#ff6b4a","#ffc83d","#14b8a6","#4f5bd5","#ff8fb1","#5cc26b"];
+  for(let i=0;i<140;i++) confetti.push({x:W/2+(Math.random()-.5)*200, y:H*.45, vx:(Math.random()-.5)*700, vy:-300-Math.random()*500, r:Math.random()*6, vr:(Math.random()-.5)*12, col:cols[i%cols.length], dt:1/60});
+}
+let last = performance.now();
+function loop(now){
+  const dt = Math.min(.05, (now-last)/1000); last = now;
+  T += dt; update(dt); draw();
+  const pv = document.getElementById("preview");
+  if(pv) pv.getContext("2d").drawImage(cv, 0, 0, pv.width, pv.height);
+  requestAnimationFrame(loop);
+}
+
+/* ---------- Affichages ---------- */
+function showBanner(big, small){ $("bannerBig").textContent = big; $("bannerSmall").innerHTML = small; $("banner").classList.add("show"); }
+function hideBanner(){ $("banner").classList.remove("show"); }
+let toastT = null;
+function toast(t){ const el=$("toast"); el.textContent=t; el.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove("show"),1800); }
+function flashMsg(t){ toast(t); }
+function log(t){ const l=$("log"); const d=document.createElement("div"); d.textContent=t; l.prepend(d); while(l.children.length>40) l.lastChild.remove(); }
+function logClear(){ $("log").innerHTML = "<div>▶ Nouvelle partie</div>"; }
+function flashRule(id){
+  const c = document.querySelector(`.rule[data-rid="${id}"]`); if(!c) return;
+  c.classList.add("flash"); setTimeout(()=>c.classList.remove("flash"), 700);
+}
+
+/* ---------- Prédiction ---------- */
+let votes = [{t:"Il retourne au départ", n:0},{t:"Il perd une vie",n:0},{t:"Il ne se passe rien",n:0}];
+function setPredict(q, opts){
+  $("pq").value = fill(q);
+  votes = opts.map(o => ({t:fill(o.t), n:0, apply:o.apply||null}));
+}
+function renderPredict(){
+  const o = $("opts"); o.innerHTML = "";
+  votes.forEach((v,i) => {
+    const d = document.createElement("div"); d.className="opt";
+    d.innerHTML = `<div class="l">${"ABC"[i]}</div>`;
+    const inp = document.createElement("input"); inp.value = v.t; inp.oninput = () => v.t = inp.value;
+    const t = document.createElement("div"); t.className="tally";
+    const m = document.createElement("button"); m.textContent="−"; const p = document.createElement("button"); p.textContent="＋";
+    const n = document.createElement("span"); n.textContent = v.n;
+    m.onclick=()=>{ v.n=Math.max(0,v.n-1); n.textContent=v.n; renderPresenter(); }; p.onclick=()=>{ v.n++; n.textContent=v.n; renderPresenter(); };
+    t.append(m,n,p); d.append(inp,t);
+    if(v.apply){
+      const pk = document.createElement("button"); pk.className="pick"; pk.textContent="✔ C’est notre choix";
+      pk.onclick = () => { v.apply(); changed(); closePredict(); newGame(); toast("Règle modifiée : à vous de tester !"); };
+      d.appendChild(pk);
+    }
+    o.appendChild(d);
+  });
+  const rr = $("rulesread"); rr.innerHTML = "<b>Les règles actuelles :</b>";
+  rules.filter(r=>r.on).forEach(r => { const d=document.createElement("div"); d.textContent = "• " + ruleSentence(r); rr.appendChild(d); });
+}
+function openPredict(){ renderPredict(); $("predict").classList.add("show"); if(typeof renderPresenter==="function") renderPresenter(); }
+function closePredict(){ $("predict").classList.remove("show"); if(typeof renderPresenter==="function") renderPresenter(); }
+
+/* ---------- Déroulé de l'atelier (une étape = un écran) ---------- */
+function ruleFor(evType){
+  let r = rules.find(x => x.ev && x.ev.type===evType);
+  if(!r){ rules.push(...withIds([{ev:B(evType), co:null, then:[], els:[]}])); r = rules[rules.length-1]; }
+  r.on = true; return r;
+}
+const setThen = (ev, list) => { ruleFor(ev).then = list; };
+function fixBugs(){
+  const g = rules.find(x => x.ev && x.ev.type==="goal");
+  if(g && g.co && g.co.type==="scoreGe" && g.co.n > 8){ g.co = B("allItems"); g.els = [B("say",{tx:"Il en manque !"})]; }
+  const it = rules.find(x => x.ev && x.ev.type==="item");
+  if(it) it.then = it.then.filter(a => a.type!=="toStart");
+}
+const C = s => `<span class="blk mini ${s}">`;
+const STEPS = [
+  { label:"Accueil", min:5, pub:["Bienvenue et installation", "Présentation", "Former 3 ou 4 groupes", "La règle : vous décidez, l’ordinateur obéit"],
+    say:"Bienvenue ! Aujourd’hui, c’est vous qui décidez comment marche un jeu vidéo.",
+    slide:() => `<div class="hero">${["velo","licorne","robot","abeille","astronaute"].map(k => IMG(k,"",120)).join("")}</div><h1>Les <span class="hl">règles</span> du jeu</h1>
+      <p>Aujourd’hui, vous êtes les <b>développeuses</b> : vous inventez les règles, l’ordinateur les applique.</p>
+      <div class="agenda"><span>🎮 Jouer</span><span>🎨 Personnaliser</span><span>🧩 Décider des règles</span><span>🐞 Chasser les bugs</span><span>✨ Améliorer</span><span>🏆 Partie finale</span></div>
+      <p class="sub">Atelier « Le monde de l’informatique » · Journée Oser tous les Métiers 2026</p>`,
+    notes:[
+      "Les 60 minutes comprennent l’arrivée et le départ : cette étape absorbe l’installation (5 min max). Lancer « Suivant » dès que tout le monde est assis.",
+      "Te présenter en une phrase : prénom, ton métier, ce que fait le SOI.",
+      "Former 3 ou 4 groupes (Groupe 1, 2, 3, 4) et les faire asseoir ensemble.",
+      "Rôles : toi, tu animes et tu cliques « Suivant ». L’accompagnant·e compte les votes, passe dans les groupes pour relancer la discussion et peut jouer au clavier pendant les tests.",
+      "Annoncer la règle de l’atelier : « Je suis votre robot. Je fais <b>exactement</b> ce que vous me dites, ni plus ni moins. »",
+      "Préciser : personne ne touche l’ordinateur, mais c’est vous qui décidez tout."
+    ]},
+  { label:"Un jeu sans règles", min:3, pub:["On joue au jeu", "Que se passe-t-il ? Pourquoi ?"],
+    setup(){ rules = withIds([]); newGame(); },
+    say:"On joue ! Que se passe-t-il quand on touche {obsOne} ? Quand on ramasse {one} ?",
+    notes:[
+      "Jouer avec les flèches : toucher {obsOne}, ramasser {one}, aller jusqu’à l’arrivée.",
+      "Rien ne se passe ! Demander : « Pourquoi ? »",
+      "Réponse attendue : il n’y a aucune règle. Montrer le journal à droite : « aucune règle, il ne se passe rien ».",
+      "Message clé : <b>un ordinateur ne devine rien</b>. Quelqu’un doit écrire les règles : c’est le travail des développeuses et développeurs."
+    ]},
+  { label:"Personnaliser le jeu", min:4, pub:["Voter la mission", "Choisir le personnage", "Choisir le monde", "Trouver un titre"],
+    say:"Personnalisez votre jeu : la mission, le personnage et le monde !",
+    slide:() => `<h1 style="font-size:2.4em">Personnalisez <span class="hl">votre</span> jeu</h1>
+      <div class="perso"><div>
+        <h3>1 · La mission</h3><div class="cards small">` +
+      Object.entries(MISSIONS).map(([k,m]) => `<div class="mcard ${M===m?"on":""}" data-m="${k}">
+        <b>${m.name}</b><div class="ln">${IMG(m.item,"",40)} ramasser les ${m.items}</div><div class="ln">${IMG(m.goal,"",40)} arriver ${m.goalTo}</div></div>`).join("") + `</div>
+        <h3>2 · Le personnage</h3><div class="avatars">` +
+      AVATARS.map(a => `<button class="av ${PLAYER()===a?"on":""}" data-a="${a}" title="${CHARS[a].name}">${IMG(a,"",64)}</button>`).join("") + `</div>
+        <h3>3 · Le monde</h3><div class="worlds">` +
+      Object.entries(WORLDS).map(([k,w]) => `<button class="wd ${worldKey===k?"on":""}" data-w="${k}"><img src="${worldURL(k)}" alt=""><span class="ln">${IMG(w.obstacle,"",32)} ${w.name}</span></button>`).join("") + `</div>
+      </div><div><canvas id="preview" width="560" height="400"></canvas>
+        <p class="sub">Titre du jeu : <b>${esc($("title").value)}</b></p></div></div>`,
+    notes:[
+      "Trois petits votes rapides, à main levée (1 minute chacun). L’accompagnant·e compte les mains.",
+      "<b>Mission</b> : lire les 4 cartes, voter, cliquer la gagnante. Le monde change avec, mais on peut le modifier ensuite.",
+      "<b>Personnage</b> : chaque groupe propose un personnage de la liste, puis vote. Cliquer dessus : l’aperçu à droite change tout de suite.",
+      "<b>Monde</b> : voter et cliquer. Montrer l’aperçu : « C’est le même jeu, avec les mêmes règles : seul l’habillage change. »",
+      "Titre : si un groupe a une idée, la taper tout en haut à gauche (cliquer sur « Notre jeu »). Sinon, on le choisira à la fin."
+    ]},
+  { label:"Les 3 sortes de blocs", min:3, pub:["QUAND : un événement", "SI : une condition", "ALORS : une action", "Inventer une règle de la vie de tous les jours"],
+    say:"Les règles s’écrivent avec 3 sortes de blocs.",
+    slide:() => `<h1>Les 3 sortes de blocs</h1><div class="cards">
+      <div class="concept ev"><b>QUAND…</b>l’ordinateur <u>attend</u> que quelque chose arrive.<br><i>un événement</i></div>
+      <div class="concept co"><b>SI…</b>il <u>vérifie</u> : est-ce vrai ou faux ?<br><i>une condition</i></div>
+      <div class="concept ac"><b>ALORS…</b>il <u>agit</u>, exactement comme on lui a dit.<br><i>une action</i></div></div>
+      <div class="example">${C("ev")}QUAND</span> la sonnerie sonne, ${C("co")}SI</span> c’est la récré, ${C("ac")}ALORS</span> on sort, ${C("ac")}SINON</span> on reste en classe.</div>`,
+    notes:[
+      "Expliquer les 3 couleurs avec l’exemple de la sonnerie.",
+      "Demander à chaque groupe d’inventer une règle de la vie de tous les jours (feu rouge, réveil, pluie…).",
+      "Faire dire la règle à voix haute en commençant par « QUAND… ». Corriger gentiment si l’ordre manque.",
+      "Transition : « Maintenant, on fait la même chose pour notre jeu. »"
+    ]},
+  { label:"Le jeu de départ", min:3, pub:["Lire les règles du jeu", "Chaque groupe surveille quelque chose", "On joue !"],
+    setup(){ rules = withIds(clone(PRESETS.depart)); newGame(); },
+    say:"Voici le jeu de départ. Chaque groupe surveille quelque chose pendant la partie !",
+    notes:[
+      "Lire les règles à voix haute (la phrase en italique sous chaque carte).",
+      "Donner une mission d’observation : Groupe 1 les blocs QUAND (orange), Groupe 2 les blocs ALORS (bleus), Groupe 3 le score, Groupe 4 le chrono.",
+      "Jouer 30 secondes (R pour relancer). Chaque fois qu’une règle s’allume en jaune, le groupe concerné crie « Celle-là ! ».",
+      "Faire remarquer la règle « touche {obsOne} » : ALORS est vide. Il ne se passe rien. C’est la prochaine décision."
+    ]},
+  { label:"Décision 1 : l’obstacle", min:4, pub:["Discuter en groupe", "Voter", "Prédire, puis tester"],
+    predict:{ q:"QUAND le personnage touche {obsOne}, qu’est-ce qui doit se passer ?", opts:[
+      {t:"Il retourne au départ", apply:()=>setThen("obstacle",[B("toStart")])},
+      {t:"Il perd 1 point", apply:()=>setThen("obstacle",[B("subScore",{n:1})])},
+      {t:"{obsThe} disparaît", apply:()=>setThen("obstacle",[B("removeObs")])} ]},
+    say:"Décision 1 : que se passe-t-il quand on touche {obsOne} ?",
+    notes:[
+      "La fenêtre de vote est ouverte. 1 minute de discussion, puis chaque groupe vote (boutons ＋).",
+      "Cliquer « ✔ Choisir » (vue animateur) ou « ✔ C’est notre choix » (télé) pour la réponse gagnante : le bloc se pose tout seul dans la règle.",
+      "Avant de jouer, demander : « Le jeu va-t-il être plus facile ou plus difficile ? » Puis jouer pour vérifier.",
+      "Pour montrer le geste, on peut aussi glisser le bloc bleu à la main depuis la palette de gauche.",
+      "Pas content du résultat ? Touche P pour revoter."
+    ]},
+  { label:"Décision 2 : le chrono", min:2, pub:["Voter le temps du chrono", "Tester : trop facile ? trop dur ?"],
+    predict:{ q:"Combien de temps pour finir la mission ?", opts:[
+      {t:"30 secondes", apply:()=>setThen("start",[B("setTimer",{n:30})])},
+      {t:"60 secondes", apply:()=>setThen("start",[B("setTimer",{n:60})])},
+      {t:"90 secondes", apply:()=>setThen("start",[B("setTimer",{n:90})])} ]},
+    say:"Décision 2 : combien de temps pour réussir la mission ?",
+    notes:[
+      "Vote, puis « ✔ C’est notre choix ». Le nombre change dans le bloc « chrono à … secondes ».",
+      "Jouer. Demander : trop facile ? trop dur ? On peut changer le nombre directement dans le bloc.",
+      "Idée à faire passer : les développeuses <b>règlent</b> la difficulté en essayant plusieurs fois."
+    ]},
+  { label:"Prédiction : gagner sans tout ramasser ?", min:2, pub:["Prédire : A, B ou C ?", "Tester", "Comprendre pourquoi"],
+    predict:{ q:"Si on va directement {goalTo} sans rien ramasser, est-ce qu’on gagne ?", opts:[
+      {t:"Oui, on gagne"}, {t:"Non, on ne gagne pas"}, {t:"On ne peut pas savoir"} ]},
+    say:"Prédiction : peut-on gagner sans rien ramasser ?",
+    notes:[
+      "Faire voter (pas de bon choix à cliquer ici, c’est une prédiction).",
+      "« On teste ! » puis aller tout droit à l’arrivée en évitant les obstacles.",
+      "On gagne ! Relire la règle de l’arrivée : il n’y a pas de SI. L’ordinateur fait exactement ce qui est écrit.",
+      "Demander : « Est-ce que c’est juste ? Comment l’empêcher ? » → il faut une condition."
+    ]},
+  { label:"Ajouter une condition", min:4, pub:["Ajouter un SI", "Ajouter un SINON", "Tester les deux cas"],
+    say:"Nouvelle règle : on gagne SEULEMENT s’il ne reste plus de {items} à ramasser.",
+    auto:{ label:"Poser la condition pour moi", fn(){ const r = ruleFor("goal"); r.co = B("allItems"); r.then=[B("win")]; r.els=[B("say",{tx:"Il en manque !"})]; } },
+    notes:[
+      "Dans la règle « arrive {goalTo} » : glisser le bloc vert « il ne reste plus de {items} » dans la case SI.",
+      "Une ligne SINON apparaît : y glisser « affiche… » et taper « Il en manque ! ».",
+      "Ou bien cliquer le bouton jaune ci-dessous pour le faire automatiquement.",
+      "Prédire avec elles : « Et maintenant, si on va tout droit ? » Tester : « Il en manque ! » Puis tout ramasser et gagner.",
+      "Faire lire la règle complète : QUAND… SI… ALORS… SINON…"
+    ]},
+  { label:"Chasse au bug", min:6, pub:["Jouer et observer", "Lire le journal", "Trouver la règle fautive", "Corriger et vérifier"],
+    setup(){ const r = ruleFor("goal"); r.co = B("scoreGe",{n:20}); r.then=[B("win")]; r.els=[B("say",{tx:"Pas encore !"})];
+             if(!rules.some(x=>x.ev&&x.ev.type==="item"&&x.then.some(a=>a.type==="addScore"))) ruleFor("item").then.push(B("addScore",{n:1}));
+             newGame(); },
+    say:"🐞 Oh non ! Un bug s’est glissé dans le jeu. On ne peut plus gagner… Trouvez pourquoi !",
+    auto:{ label:"Corriger le bug pour moi", fn(){ const r = ruleFor("goal"); r.co = B("scoreGe",{n:8}); } },
+    notes:[
+      "Raconter : « Pendant la pause, une développeuse a modifié le jeu… et maintenant il y a un bug. »",
+      "Jouer : tout ramasser, arriver… « Pas encore ! » On ne gagne pas.",
+      "Montrer le journal : « SI le score est au moins 20 ✘ faux ». Laisser les groupes chercher 2 minutes.",
+      "Indice si besoin : « Combien y a-t-il de {items} dans le jeu ? » (8). Le score ne peut jamais atteindre 20.",
+      "Correction : remplacer 20 par 8 dans le bloc vert (ou remettre le bloc « il ne reste plus de {items} »). Retester et gagner.",
+      "Message clé : trouver et corriger des bugs, c’est une grande partie du métier. On appelle ça <b>déboguer</b>."
+    ]},
+  { label:"Bug bonus (si on a le temps)", min:2, pub:["Observer le nouveau bug", "Le trouver et le corriger"],
+    setup(){ fixBugs(); const it = ruleFor("item"); if(!it.then.some(a=>a.type==="toStart")) it.then.push(B("toStart")); newGame(); },
+    say:"🐞 Bug bonus : chaque fois qu’on ramasse {one}, il se passe quelque chose de bizarre…",
+    auto:{ label:"Corriger le bug pour moi", fn(){ const it = ruleFor("item"); it.then = it.then.filter(a=>a.type!=="toStart"); } },
+    notes:[
+      "<b>Facultatif : à sauter si le chrono total dépasse 36 min en arrivant ici.</b>",
+      "Jouer : ramasser {one} → on retourne au départ ! Les règles qui s’allument en jaune donnent la réponse.",
+      "Correction : enlever le bloc « retourne au départ » de la règle « ramasse {one} » (le ✕ sur le bloc)."
+    ]},
+  { label:"Évaluer le jeu", min:3, pub:["Une question par groupe", "Une idée d’amélioration par groupe", "Voter"],
+    setup(){ fixBugs(); newGame(); },
+    say:"Chaque groupe juge le jeu et propose UNE amélioration.",
+    slide:() => `<h1>Notre jeu est-il réussi ?</h1><div class="cards">
+      <div class="qcard"><div class="g">Groupe 1</div>Le but du jeu est-il clair ?</div>
+      <div class="qcard"><div class="g">Groupe 2</div>Est-il trop facile ou trop difficile ?</div>
+      <div class="qcard"><div class="g">Groupe 3</div>Les règles sont-elles justes ?</div>
+      <div class="qcard"><div class="g">Groupe 4</div>Qu’est-ce qui le rendrait plus amusant ?</div></div>
+      <p class="sub" style="margin-top:1em">Chaque groupe : 2 minutes pour trouver UNE idée d’amélioration.</p>`,
+    notes:[
+      "Laisser 2 minutes. Chaque groupe donne sa réponse et son idée en une phrase.",
+      "(Si un bug n’avait pas été corrigé, il l’a été automatiquement en arrivant sur cette étape.)",
+      "Faire voter pour l’idée à appliquer (1, au maximum 2).",
+      "Idées faciles à réaliser à l’étape suivante : des vies, aller plus vite, des obstacles en plus quand on ramasse, un message de victoire, un son."
+    ]},
+  { label:"Appliquer l’amélioration", min:5, pub:["Dicter les blocs", "Prédire", "Tester"],
+    say:"On applique votre idée ! Dites-moi quels blocs poser.",
+    auto:{ label:"Ajouter 3 vies (exemple)", fn(){ setThen("start",[...ruleFor("start").then.filter(a=>a.type!=="setLives"), B("setLives",{n:3})]);
+             const o = ruleFor("obstacle"); if(!o.then.some(a=>a.type==="loseLife")) o.then.unshift(B("loseLife")); setThen("noLives",[B("lose")]); } },
+    notes:[
+      "Faire dicter les blocs par le groupe gagnant : « QUAND… ALORS… ». Tu poses, tu ne décides pas.",
+      "Recettes : <b>vies</b> = « le jeu démarre → donne 3 vies » + « touche → perd 1 vie » + « plus de vies → perdu ». <b>Plus dur</b> = « ramasse → ajoute {obsOne} ». <b>Message</b> = « ramasse → affiche… ».",
+      "Avant de tester : « Que va-t-il se passer ? » (touche P pour un vote rapide si besoin).",
+      "Si ça casse tout : ⚙ → Version → « Version finale de secours »."
+    ]},
+  { label:"La partie finale", min:4, pub:["La partie finale !", "Guidez le personnage"],
+    setup(){ newGame(); document.body.classList.add("focus"); },
+    leave(){ document.body.classList.remove("focus"); },
+    say:"Partie finale ! Encouragez-nous et dites-nous où aller !",
+    notes:[
+      "Jouer la partie finale. Les filles dictent les déplacements (« à gauche ! », « attention ! »).",
+      "Si on perd : R et on recommence. Si on gagne : l’écran de victoire affiche le titre et les crédits.",
+      "Penser à sauvegarder le jeu : ⚙ → 💾."
+    ]},
+  { label:"Bilan et métiers", min:4, pub:["Ce que vous avez fait", "Les métiers de l’informatique", "Un mot chacune"],
+    say:"Ce que vous avez fait aujourd’hui, ce sont de vrais métiers de l’informatique.",
+    slide:() => `<h1>Aujourd’hui, vous avez…</h1><div class="jobs">
+      <div>💡 imaginé une mission</div><div class="arrow">→</div><div><b>conceptrice</b> de jeux, cheffe de projet</div>
+      <div>🧩 écrit des règles</div><div class="arrow">→</div><div><b>développeuse</b>, programmeuse</div>
+      <div>🤔 prédit et testé</div><div class="arrow">→</div><div><b>testeuse</b>, analyste qualité</div>
+      <div>🐞 trouvé et corrigé un bug</div><div class="arrow">→</div><div><b>développeuse</b> qui débogue</div>
+      <div>🗳 jugé le jeu avec les autres</div><div class="arrow">→</div><div><b>designer</b> UX, ergonome</div></div>
+      <div class="example" style="font-size:1.15em;text-align:left;max-width:60em">
+        <b>Dans une ville aussi, tout marche avec des règles :</b><br>
+        ${C("ev")}QUAND</span> quelqu’un réserve une salle de gym en ligne, ${C("co")}SI</span> elle est libre, ${C("ac")}ALORS</span> la réservation est confirmée, ${C("ac")}SINON</span> on propose une autre heure.<br>
+        ${C("ev")}QUAND</span> un bus approche de l’arrêt, ${C("ac")}ALORS</span> l’écran affiche « 2 min ».<br>
+        ${C("ev")}QUAND</span> on badge à la porte, ${C("co")}SI</span> le badge est autorisé, ${C("ac")}ALORS</span> la porte s’ouvre.</div>`,
+    notes:[
+      "Lire le tableau ligne par ligne en rappelant le moment correspondant de l’atelier.",
+      "Lien avec le SOI : « Les applications d’une ville marchent avec les mêmes règles que notre jeu. » Lire les exemples du bas de l’écran, puis demander : « Vous voyez d’autres règles autour de vous ? » (bus, porte automatique, appli de l’école…).",
+      "Si tu as un exemple réel de ton travail, il vaut mieux que ceux de l’écran : remplace-les à l’oral.",
+      "Tour de salle rapide : chacune dit un mot sur ce qu’elle a préféré.",
+      "Rappeler : ces métiers sont ouverts à toutes, on n’a pas besoin d’être « forte en maths » pour commencer."
+    ]},
+  { label:"Merci et au revoir", min:3, pub:["Scanner le QR code", "Au revoir !"],
+    say:"Bravo et merci !",
+    slide:() => `<div class="merci"><div><div class="hero">${IMG(PLAYER(),"",130)}${IMG(M.goal,"",130)}</div><h1>${esc($("title").value)}</h1>
+      <p>Un jeu imaginé, programmé, testé et corrigé par les participantes de la JOM 2026.</p>
+      <p><b>Scannez le code pour rejouer à votre jeu</b> à la maison, sur téléphone ou ordinateur. Merci&nbsp;!</p></div>
+      <div><div id="qr" class="qr">…</div></div></div>`,
+    notesMin:true,
+    after(){ shareLink().then(url => { const q = $("qr"); if(!q) return; q.innerHTML = qrSvg(url); q.title = url; }); },
+    notes:[
+      "(Consignes réduites pour ne pas cacher le QR code : touche N pour les rouvrir.)",
+      "Laisser le QR code affiché pendant le départ : les filles (ou leurs parents) le scannent avec un téléphone.",
+      "Le lien contient tout le jeu (règles, personnage, monde) : il marche tout de suite, sans rien publier de plus.",
+      "Remercier, répondre aux dernières questions. Le départ est compris dans les 60 minutes : libérer la salle à l’heure.",
+      "Option : ⚙ → « 🔗 Copier le lien du jeu » pour l’envoyer par e-mail à l’organisatrice."
+    ]},
+];
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+let step = 0, stepStart = performance.now(), workshopStart = null, notesWin = null;
+function goStep(i){
+  if(MODE!=="atelier") return;
+  i = Math.max(0, Math.min(STEPS.length-1, i));
+  const forward = i > step || (i===step && workshopStart===null);
+  if(STEPS[step] && STEPS[step].leave) STEPS[step].leave();
+  step = i; stepStart = performance.now();
+  if(workshopStart===null) workshopStart = performance.now();
+  const s = STEPS[step];
+  closePredict();
+  if(forward && s.setup){ selected=null; s.setup(); renderRules(); save(); }
+  if(s.predict){ setPredict(s.predict.q, s.predict.opts); openPredict(); }
+  $("notes").classList.toggle("min", !!s.notesMin);
+  renderStep();
+  try{ localStorage.setItem("atelier-step", step); }catch(e){}
+}
+function renderStep(){
+  const s = STEPS[step];
+  $("stepLabel").textContent = `Étape ${step+1}/${STEPS.length} · ${s.label}`;
+  $("say").textContent = fill(s.say);
+  $("prev").disabled = step===0; $("next").disabled = step===STEPS.length-1;
+  const sl = $("slide");
+  if(s.slide){ sl.innerHTML = s.slide(); sl.classList.add("show");
+    sl.querySelectorAll(".mcard").forEach(c => c.onclick = () => { worldKey = MISSIONS[c.dataset.m].world; setMission(c.dataset.m); avatar = null; save(); newGame(); renderStep(); });
+    sl.querySelectorAll(".av").forEach(c => c.onclick = () => { avatar = c.dataset.a; save(); renderStep(); });
+    sl.querySelectorAll(".wd").forEach(c => c.onclick = () => { worldKey = c.dataset.w; save(); renderPalette(); renderRules(); renderStep(); });
+    if(s.after) s.after();
+  } else sl.classList.remove("show");
+  renderNotes();
+  tickClock();
+}
+let DISPLAY = "one"; // one = un seul écran (télé) · two = télé + fenêtre animateur
+function stepActions(){
+  const s = STEPS[step], a = [];
+  a.push(["", "◀ Précédent", () => goStep(step-1)]);
+  if(STEPS[step+1]) a.push(["primary", "Suivant ▶ " + STEPS[step+1].label, () => goStep(step+1)]);
+  if(!s.slide) a.push(["", "▶ Tester / rejouer", () => { newGame(); }]);
+  if(s.auto) a.push(["auto", "⚡ " + s.auto.label, () => { s.auto.fn(); changed(); newGame(); toast("C’est fait !"); }]);
+  if(s.predict) a.push(["", "🤔 Rouvrir le vote", openPredict]);
+  return a;
+}
+function renderNotes(){
+  const s = STEPS[step];
+  $("notes").style.display = (DISPLAY==="two" && notesWin && !notesWin.closed) ? "none" : "";
+  $("notesTitle").textContent = `Au programme · ${s.label} · ~${s.min} min`;
+  $("notesBody").innerHTML = "<ul>" + (s.pub||[]).map(n => `<li>${esc(fill(n))}</li>`).join("") + "</ul>";
+  if(s.auto){ const b = document.createElement("button"); b.className = "auto primary"; b.textContent = "⚡ " + s.auto.label;
+    b.onclick = () => { s.auto.fn(); changed(); newGame(); toast("C’est fait !"); }; $("notesBody").appendChild(b); }
+  renderPresenter();
+}
+function renderPresenter(){
+  if(!(notesWin && !notesWin.closed)) return;
+  const d = notesWin.document, s = STEPS[step], nx = STEPS[step+1];
+  const el = id => d.getElementById(id);
+  if(!el("pTitle")) return;
+  el("pTitle").textContent = `Étape ${step+1}/${STEPS.length} · ${s.label} (~${s.min} min)`;
+  el("pSay").textContent = "À l’écran : « " + fill(s.say) + " »";
+  el("pNotes").innerHTML = s.notes.map(n => `<li>${fill(n)}</li>`).join("");
+  el("pNext").textContent = nx ? "Ensuite : " + nx.label : "Dernière étape";
+  const bx = el("pBtns"); bx.innerHTML = "";
+  for(const [cls, label, fn] of stepActions()){ const b = d.createElement("button"); b.className = cls; b.textContent = label; b.onclick = fn; bx.appendChild(b); }
+  const v = el("pVote");
+  if($("predict").classList.contains("show")){
+    v.innerHTML = `<h3>Vote en cours : ${esc($("pq").value)}</h3>`;
+    votes.forEach((o,i) => {
+      const row = d.createElement("div"); row.className = "vrow";
+      row.innerHTML = `<b>${"ABC"[i]}</b><span>${esc(o.t)}</span><em>${o.n}</em>`;
+      const m = d.createElement("button"); m.textContent = "−"; m.onclick = () => { o.n = Math.max(0,o.n-1); renderPredict(); renderPresenter(); };
+      const pl = d.createElement("button"); pl.textContent = "＋"; pl.onclick = () => { o.n++; renderPredict(); renderPresenter(); };
+      row.append(m, pl);
+      if(o.apply){ const c = d.createElement("button"); c.className = "ok"; c.textContent = "✔ Choisir"; c.onclick = () => { o.apply(); changed(); closePredict(); newGame(); toast("Règle modifiée : à vous de tester !"); renderPresenter(); }; row.appendChild(c); }
+      v.appendChild(row);
+    });
+    const t = d.createElement("button"); t.className = "primary"; t.textContent = "▶ On teste !"; t.onclick = () => { closePredict(); newGame(); renderPresenter(); }; v.appendChild(t);
+  } else v.innerHTML = "";
+}
+function printSheet(){
+  const w = window.open("", "ficheAnimateur");
+  if(!w){ toast("Fenêtre bloquée par le navigateur"); return; }
+  let t = 0;
+  const body = STEPS.map((s,i) => { t += s.min; return `<section><h2>${i+1}. ${esc(s.label)} <small>~${s.min} min · fin prévue à ${t} min</small></h2>
+    <p class="say">À l’écran : « ${esc(fill(s.say))} »</p><ul>${s.notes.map(n => `<li>${fill(n)}</li>`).join("")}</ul>${s.auto?`<p class="auto">Bouton de secours : ⚡ ${esc(s.auto.label)}</p>`:""}</section>`; }).join("");
+  w.document.open(); w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Fiche animateur</title><style>
+    body{font-family:"Segoe UI",system-ui,sans-serif;max-width:900px;margin:1.5em auto;padding:0 1em;color:#1f2430;font-size:14px}
+    h1{margin:.2em 0} h2{font-size:1.15em;margin:1.2em 0 .3em;border-bottom:2px solid #ddd;padding-bottom:.2em} small{color:#777;font-weight:400}
+    .say{font-style:italic;color:#555;margin:.2em 0} li{margin:.2em 0} section{break-inside:avoid} .auto{color:#9a6b00}
+    @media print{button{display:none}}</style></head><body><button onclick="print()">🖨 Imprimer</button>
+    <h1>Fiche animateur · « ${esc($("title").value)} »</h1><p>Durée totale prévue : ${t} min sur 60 (arrivée et départ compris).</p>${body}</body></html>`);
+  w.document.close();
+}
+const mmss = ms => { const s = Math.max(0, Math.floor(ms/1000)); return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); };
+function tickClock(){
+  const s = STEPS[step]; const el = performance.now() - stepStart;
+  const tot = workshopStart===null ? 0 : performance.now() - workshopStart;
+  const over = el > s.min*60000;
+  const dots = STEPS.map((_,i) => `<i class="${i<step?"done":i===step?"cur":""}"></i>`).join("");
+  const plan = STEPS.slice(0, step+1).reduce((t,x) => t + x.min, 0);
+  const late = tot > plan*60000;
+  $("clock").innerHTML = `<span class="${over?"over":""}">étape ${mmss(el)} / ${s.min} min</span> · <span class="${late?"over":""}">total ${mmss(tot)} (prévu ${plan} min à la fin de l’étape)</span><div class="dots">${dots}</div>`;
+  if(notesWin && !notesWin.closed){ const c = notesWin.document.getElementById("clock"); if(c) c.innerHTML = $("clock").innerHTML; }
+}
+setInterval(tickClock, 1000);
+function openNotesWin(){
+  notesWin = window.open("", "vueAnimateur", "width=760,height=900");
+  if(!notesWin){ toast("Fenêtre bloquée : autorisez les fenêtres pop-up pour ce fichier"); return false; }
+  const d = notesWin.document;
+  d.open(); d.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Vue animateur</title><style>
+    body{font-family:"Segoe UI",system-ui,sans-serif;background:#1f2430;color:#f3f3f3;margin:0;padding:1em 1.2em;font-size:18px}
+    button{font:inherit;cursor:pointer;border-radius:10px;padding:.4em .8em;border:2px solid #555;background:#2c3242;color:#fff;margin:.2em .3em .2em 0}
+    button.primary{background:#fff;color:#1f2430;border-color:#fff;font-weight:800}
+    button.auto{background:#f5b400;border-color:#f5b400;color:#1f2430;font-weight:800}
+    button.ok{background:#2f9e44;border-color:#2f9e44;font-weight:800}
+    h1{font-size:1.35em;margin:.3em 0} h3{margin:.8em 0 .3em}
+    #pSay{color:#ffd76a;font-style:italic;margin:.3em 0 .6em}
+    ul{padding-left:1.2em;line-height:1.5} li{margin:.4em 0} #clock{color:#bbb}
+    #pNext{color:#999;margin-top:.8em}
+    .vrow{display:flex;align-items:center;gap:.5em;background:#2c3242;border-radius:10px;padding:.2em .6em;margin:.3em 0}
+    .vrow span{flex:1} .vrow em{font-style:normal;font-weight:900;font-size:1.3em;min-width:1.5em;text-align:center}
+    #pVote{border-top:1px solid #444;margin-top:.6em}
+    .help{color:#999;font-size:.8em;margin-top:1.5em;border-top:1px solid #444;padding-top:.6em}
+    .dots{display:flex;gap:4px;margin-top:4px}.dots i{width:9px;height:9px;border-radius:50%;background:#555;display:block}.dots i.done{background:#c9a94a}.dots i.cur{background:#fff}
+    .over{color:#ff7aa2}</style></head>
+    <body><div id="clock"></div><h1 id="pTitle"></h1><div id="pSay"></div><div id="pBtns"></div><div id="pVote"></div><ul id="pNotes"></ul><div id="pNext"></div>
+    <div class="help">Cette fenêtre reste sur l’écran du portable, la page principale sur la télé (Windows + P → « Étendre »).<br>
+    Les touches marchent ici aussi : flèches = jouer, Page suivante / Page précédente = étapes, R = rejouer, P = vote.</div></body></html>`);
+  d.close();
+  d.addEventListener("keydown", e => handleKey(e, true));
+  d.addEventListener("keyup", e => handleKey(e, false));
+  notesWin.addEventListener("blur", () => { for(const k in keys) keys[k]=false; });
+  renderNotes(); tickClock();
+  return true;
+}
+function chooseDisplay(mode){
+  DISPLAY = mode;
+  try{ localStorage.setItem("atelier-display", mode); }catch(e){}
+  if(mode==="two" && !openNotesWin()) DISPLAY = "one";
+  $("launcher").classList.remove("show");
+  $("btnDisplay").textContent = DISPLAY==="two" ? "💻 Vue animateur" : "📺 Un écran";
+  renderNotes();
+}
+
+/* ---------- Partage : le jeu entier tient dans le lien ---------- */
+const SITE_URL = "https://djguiaume.github.io/JOM-2026/";
+let MODE = "atelier"; // atelier | play | free
+const b64u = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const unb64u = s => Uint8Array.from(atob(s.replace(/-/g,"+").replace(/_/g,"/")), c => c.charCodeAt(0));
+async function pipe(bytes, stream){ return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer()); }
+async function shareLink(){
+  const st = gameState();
+  st.rules = rules.filter(r => r.on && r.ev).map(r => ({ev:r.ev, co:r.co, then:r.then, els:r.els}));
+  const raw = new TextEncoder().encode(JSON.stringify(st));
+  if(window.CompressionStream) return SITE_URL + "#jeu=z" + b64u(await pipe(raw, new CompressionStream("deflate-raw")));
+  return SITE_URL + "#jeu=j" + b64u(raw);
+}
+async function readLink(code){
+  let bytes = unb64u(code.slice(1));
+  if(code[0]==="z") bytes = await pipe(bytes, new DecompressionStream("deflate-raw"));
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+function qrSvg(text){
+  const q = qrcode(0, "L"); q.addData(text); q.make();
+  return q.createSvgTag({cellSize:4, margin:4, scalable:true});
+}
+function renderPlayInfo(){
+  const box = $("playInfo");
+  box.innerHTML = `<h2>${esc($("title").value)}</h2><p class="help">Un jeu imaginé, programmé, testé et corrigé par les participantes de la JOM 2026 (Journée Oser tous les Métiers). Déplace-toi avec les flèches du clavier ou les boutons.</p><h2>Les règles de ce jeu</h2>` +
+    rules.filter(r => r.on).map(r => `<div class="prule">${esc(ruleSentence(r))}</div>`).join("") +
+    `<p style="display:flex;gap:.5em;flex-wrap:wrap;margin-top:1em"><button class="primary" id="playAgain">▶ Rejouer</button><button id="playEdit">🧩 Modifier les règles</button></p>`;
+  $("playAgain").onclick = newGame;
+  $("playEdit").onclick = () => { MODE = "free"; document.body.classList.remove("play"); document.body.classList.add("free"); };
+}
+function setupDpad(){
+  document.querySelectorAll("#dpad button").forEach(b => {
+    const k = b.dataset.k;
+    const on = e => { e.preventDefault(); keys[k] = true; }, off = e => { e.preventDefault(); keys[k] = false; };
+    b.addEventListener("pointerdown", on); b.addEventListener("pointerup", off);
+    b.addEventListener("pointerleave", off); b.addEventListener("pointercancel", off);
+  });
+}
+
+/* ---------- Clavier (page principale et fenêtre animateur) ---------- */
+function handleKey(e, down){
+  if(!down){ if(e.key.startsWith("Arrow")) keys[e.key]=false; return; }
+  if(e.key==="PageDown"){ e.preventDefault(); goStep(step+1); return; }
+  if(e.key==="PageUp"){ e.preventDefault(); goStep(step-1); return; }
+  const ae = e.target && e.target.ownerDocument ? e.target.ownerDocument.activeElement : null;
+  if(ae && ["INPUT","TEXTAREA","SELECT"].includes(ae.tagName)) return;
+  if(MODE!=="atelier" && "nNpP".includes(e.key)) return;
+  if(e.key==="n"||e.key==="N"){ $("notes").classList.toggle("min"); return; }
+  if(e.key.startsWith("Arrow")){ keys[e.key]=true; e.preventDefault(); if(MODE==="atelier" && !STEPS[step].slide) $("notes").classList.add("min"); }
+  else if(e.key==="r"||e.key==="R"){ if(!$("predict").classList.contains("show")) newGame(); }
+  else if(e.key==="p"||e.key==="P"){ $("predict").classList.contains("show") ? closePredict() : openPredict(); }
+  else if(e.key==="f"||e.key==="F"){ document.body.classList.toggle("focus"); }
+  else if(e.key==="Escape"){ closePredict(); selected=null; renderRules(); }
+}
+
+/* ---------- Commandes ---------- */
+function setMission(k){ M = MISSIONS[k]; renderPalette(); renderRules(); save(); }
+async function init(){
+  const sel = $("mission");
+  for(const k in MISSIONS){ const o=document.createElement("option"); o.value=k; o.textContent=MISSIONS[k].name; sel.appendChild(o); }
+  try{
+    const s = JSON.parse(localStorage.getItem("atelier-regles")||"null");
+    if(s && Array.isArray(s.rules)) applyState(s);
+  }catch(e){}
+  sel.value = missionKey();
+  sel.onchange = () => { worldKey = MISSIONS[sel.value].world; setMission(sel.value); newGame(); };
+  $("btnLink").onclick = async () => { const url = await shareLink(); try{ await navigator.clipboard.writeText(url); toast("Lien copié !"); }catch(e){ prompt("Lien du jeu :", url); } };
+  $("preset").onchange = e => {
+    const v = e.target.value; if(!v) return;
+    rules = withIds(clone(PRESETS[v])); selected=null; changed(); newGame(); e.target.value="";
+    toast("Version chargée");
+  };
+  $("addRule").onclick = () => { rules.push(...withIds([{ev:null,co:null,then:[],els:[]}])); selected={rid:rules[rules.length-1].id, slot:"ev"}; changed(); };
+  $("btnRestart").onclick = () => { newGame(); $("notes").classList.add("min"); };
+  $("btnPredict").onclick = openPredict;
+  $("pClose").onclick = closePredict;
+  $("pTest").onclick = () => { closePredict(); newGame(); $("notes").classList.add("min"); };
+  $("pReset").onclick = () => { votes.forEach(v=>v.n=0); renderPredict(); };
+  $("btnFocus").onclick = () => document.body.classList.toggle("focus");
+  let z = 1; const setZ = d => { z = Math.min(1.8, Math.max(.7, z+d)); document.documentElement.style.setProperty("--z", z); };
+  $("zoomIn").onclick = () => setZ(.1); $("zoomOut").onclick = () => setZ(-.1);
+  $("btnSound").onclick = () => { soundOn=!soundOn; $("btnSound").textContent = soundOn?"🔊":"🔇"; };
+  $("title").oninput = () => { save(); if(STEPS[step].slide) renderStep(); };
+  $("prev").onclick = () => goStep(step-1);
+  $("next").onclick = () => goStep(step+1);
+  const toggleNotes = () => $("notes").classList.toggle("min");
+  $("btnNotes").onclick = toggleNotes; $("notesMin").onclick = toggleNotes;
+  $("btnTools").onclick = () => { $("toolsRow").hidden = !$("toolsRow").hidden; };
+  $("btnPrint").onclick = printSheet;
+  $("btnDisplay").onclick = () => $("launcher").classList.add("show");
+  $("goOne").onclick = () => chooseDisplay("one");
+  $("goTwo").onclick = () => chooseDisplay("two");
+  $("goPrint").onclick = printSheet;
+  $("btnResetAll").onclick = () => {
+    if(!confirm("Recommencer l’atelier depuis le début ? Les règles actuelles seront effacées.")) return;
+    rules = withIds([]); $("title").value = "Notre jeu"; avatar = null; worldKey = "ville"; setMission("propre"); $("mission").value="propre";
+    if(STEPS[step].leave) STEPS[step].leave();
+    step = 0; workshopStart = null; goStep(0); newGame();
+  };
+  $("btnExport").onclick = () => {
+    const blob = new Blob([JSON.stringify(gameState(), null, 2)], {type:"application/json"});
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "regles-" + missionKey() + ".json"; a.click();
+  };
+  $("btnImport").onclick = () => $("file").click();
+  $("file").onchange = async e => {
+    const f = e.target.files[0]; if(!f) return;
+    try{ applyState(JSON.parse(await f.text())); sel.value = missionKey(); renderPalette(); changed(); newGame(); }
+    catch(err){ toast("Fichier illisible"); }
+  };
+  addEventListener("keydown", e => handleKey(e, true));
+  addEventListener("keyup", e => handleKey(e, false));
+  addEventListener("blur", () => { for(const k in keys) keys[k]=false; });
+  setupDpad();
+  if(location.hash.startsWith("#jeu=")){
+    try{
+      applyState(await readLink(location.hash.slice(5)));
+      MODE = "play"; document.body.classList.add("play");
+      sel.value = missionKey(); renderPalette(); renderRules(); renderPlayInfo(); newGame(); requestAnimationFrame(loop);
+      return;
+    }catch(e){ console.error(e); toast("Lien de jeu illisible"); }
+  }
+  renderPalette(); renderRules(); newGame(); requestAnimationFrame(loop);
+  let saved = 0; try{ saved = Number(localStorage.getItem("atelier-step"))||0; }catch(e){}
+  try{ DISPLAY = localStorage.getItem("atelier-display")==="two" ? "two" : "one"; }catch(e){}
+  $("launcher").classList.add("show");
+  if(saved > 0 && saved < STEPS.length){ step = saved; workshopStart = performance.now(); goStep(saved); }
+  else goStep(0);
+}
+init();
+</script>
+</body>
+</html>
