@@ -658,7 +658,7 @@ const STEPS = [
       "Te présenter en une phrase : prénom, ton métier, ce que fait le SOI.",
       "Former 3 ou 4 groupes (Groupe 1, 2, 3, 4) et les faire asseoir ensemble.",
       "Rôles : toi, tu animes et tu cliques « Suivant ». L’accompagnant·e compte les votes, passe dans les groupes pour relancer la discussion et peut jouer au clavier pendant les tests.",
-      "Annoncer la règle de l’atelier : « Je suis votre robot. Je fais <b>exactement</b> ce que vous me dites, ni plus ni moins. »",
+      "Annoncer la règle de l’atelier : « Je suis votre robot. Je fais <b>exactement</b> ce que vous me dites, ni plus ni moins. » (On le testera en vrai à l’étape 3.)",
       "Préciser : personne ne touche l’ordinateur, mais c’est vous qui décidez tout."
     ]},
   { label:"Un jeu sans règles", min:3, pub:["On joue au jeu", "Que se passe-t-il ? Pourquoi ?"],
@@ -670,7 +670,20 @@ const STEPS = [
       "Réponse attendue : il n’y a aucune règle. Montrer le journal à droite : « aucune règle, il ne se passe rien ».",
       "Message clé : <b>un ordinateur ne devine rien</b>. Quelqu’un doit écrire les règles : c’est le travail des développeuses et développeurs."
     ]},
-  { label:"Personnaliser le jeu", min:4, pub:["Voter la mission", "Choisir le personnage", "Choisir le monde", "Trouver un titre"],
+  { label:"Le robot humain", min:3, pub:["Je suis un robot", "Chaque groupe donne une instruction", "Être précises !"],
+    say:"Je suis un robot ! Guidez-moi jusqu’au tableau… mais je fais EXACTEMENT ce que vous dites.",
+    slide:() => `<div class="hero">${IMG("robot","",170)}</div><h1>Le <span class="hl">robot</span> humain</h1>
+      <p>Guidez le robot jusqu’au tableau. Chaque groupe donne <b>une instruction</b> à son tour.</p>
+      <div class="agenda"><span>Avance de 3 pas</span><span>Tourne à gauche</span><span>Lève le bras droit</span><span>Recommence 2 fois</span></div>
+      <p class="sub">Attention : le robot ne devine rien. « Va là-bas » ? Il ne comprend pas !</p>`,
+    notes:[
+      "Te placer près de la porte. Objectif : rejoindre le tableau (ou toucher un objet choisi). L’accompagnant·e désigne le groupe suivant.",
+      "Exécuter <b>à la lettre</b>, en jouant le robot (voix, gestes raides). « Avance » → un seul petit pas. « Tourne » → « À gauche ou à droite ? ». « Va là-bas » → « Instruction inconnue ».",
+      "Laisser une ou deux erreurs arriver (foncer dans une chaise, tourner du mauvais côté) : faire rire, puis demander « Qu’est-ce qui n’allait pas dans l’instruction ? ».",
+      "Pour finir, une instruction avec condition : « SI tu vois une chaise, ALORS contourne-la ».",
+      "Conclusion : « Un ordinateur, c’est pareil : il faut des instructions précises, dans le bon ordre. Dans notre jeu, on les écrira avec des blocs. »"
+    ]},
+  { label:"Personnaliser le jeu", min:3, pub:["Voter la mission", "Choisir le personnage", "Choisir le monde", "Trouver un titre"],
     say:"Personnalisez votre jeu : la mission, le personnage et le monde !",
     slide:() => `<h1 style="font-size:2.4em">Personnalisez <span class="hl">votre</span> jeu</h1>
       <div class="perso"><div>
@@ -684,7 +697,7 @@ const STEPS = [
       </div><div><canvas id="preview" width="560" height="400"></canvas>
         <p class="sub">Titre du jeu : <b>${esc($("title").value)}</b></p></div></div>`,
     notes:[
-      "Trois petits votes rapides, à main levée (1 minute chacun). L’accompagnant·e compte les mains.",
+      "Trois petits votes rapides, à main levée (moins d’une minute chacun). L’accompagnant·e compte les mains.",
       "<b>Mission</b> : lire les 4 cartes, voter, cliquer la gagnante. Le monde change avec, mais on peut le modifier ensuite.",
       "<b>Personnage</b> : chaque groupe propose un personnage de la liste, puis vote. Cliquer dessus : l’aperçu à droite change tout de suite.",
       "<b>Monde</b> : voter et cliquer. Montrer l’aperçu : « C’est le même jeu, avec les mêmes règles : seul l’habillage change. »",
@@ -775,11 +788,11 @@ const STEPS = [
     say:"🐞 Bug bonus : chaque fois qu’on ramasse {one}, il se passe quelque chose de bizarre…",
     auto:{ label:"Corriger le bug pour moi", fn(){ const it = ruleFor("item"); it.then = it.then.filter(a=>a.type!=="toStart"); } },
     notes:[
-      "<b>Facultatif : à sauter si le chrono total dépasse 36 min en arrivant ici.</b>",
+      "<b>Facultatif : à sauter si le chrono total dépasse 38 min en arrivant ici.</b>",
       "Jouer : ramasser {one} → on retourne au départ ! Les règles qui s’allument en jaune donnent la réponse.",
       "Correction : enlever le bloc « retourne au départ » de la règle « ramasse {one} » (le ✕ sur le bloc)."
     ]},
-  { label:"Évaluer le jeu", min:3, pub:["Une question par groupe", "Une idée d’amélioration par groupe", "Voter"],
+  { label:"Évaluer le jeu", min:2, pub:["Une question par groupe", "Une idée d’amélioration par groupe", "Voter"],
     setup(){ fixBugs(); newGame(); },
     say:"Chaque groupe juge le jeu et propose UNE amélioration.",
     slide:() => `<h1>Notre jeu est-il réussi ?</h1><div class="cards">
@@ -787,9 +800,9 @@ const STEPS = [
       <div class="qcard"><div class="g">Groupe 2</div>Est-il trop facile ou trop difficile ?</div>
       <div class="qcard"><div class="g">Groupe 3</div>Les règles sont-elles justes ?</div>
       <div class="qcard"><div class="g">Groupe 4</div>Qu’est-ce qui le rendrait plus amusant ?</div></div>
-      <p class="sub" style="margin-top:1em">Chaque groupe : 2 minutes pour trouver UNE idée d’amélioration.</p>`,
+      <p class="sub" style="margin-top:1em">Chaque groupe : 1 minute pour trouver UNE idée d’amélioration.</p>`,
     notes:[
-      "Laisser 2 minutes. Chaque groupe donne sa réponse et son idée en une phrase.",
+      "Laisser 1 minute de discussion. Chaque groupe donne sa réponse et son idée en une phrase.",
       "(Si un bug n’avait pas été corrigé, il l’a été automatiquement en arrivant sur cette étape.)",
       "Faire voter pour l’idée à appliquer (1, au maximum 2).",
       "Idées faciles à réaliser à l’étape suivante : des vies, aller plus vite, des obstacles en plus quand on ramasse, un message de victoire, un son."
